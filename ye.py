@@ -15,6 +15,8 @@ Options:
     -d, --domain DOMAIN  Domain for email format (e.g., example.com)
     -e, --email          Format output as email addresses
     -v, --verbose        Show additional information
+    -r, --no-random      Disable randomization of output
+    -m, --max LIMIT      Maximum number of usernames to generate
 """
 
 import argparse
@@ -36,7 +38,7 @@ def read_names_from_file(filename):
         sys.exit(1)
 
 
-def generate_usernames(first_names, last_names, randomize=True):
+def generate_usernames(first_names, last_names, randomize=True, max_usernames=None):
     """Generate usernames based on common formats."""
     usernames = []
     
@@ -45,7 +47,6 @@ def generate_usernames(first_names, last_names, randomize=True):
     
     # Randomize the order of name pairs if requested
     if randomize:
-        import random
         random.shuffle(name_pairs)
     
     for first, last in name_pairs:
@@ -68,10 +69,17 @@ def generate_usernames(first_names, last_names, randomize=True):
         ]
         
         usernames.extend(formats)
+        
+        # Check if we've reached the maximum limit
+        if max_usernames and len(usernames) >= max_usernames:
+            return usernames[:max_usernames]
     
     # Additionally randomize the order of the final username list if requested
     if randomize:
         random.shuffle(usernames)
+        # Apply limit after shuffling
+        if max_usernames:
+            return usernames[:max_usernames]
     
     return usernames
 
@@ -90,6 +98,7 @@ def main():
     parser.add_argument("-e", "--email", action="store_true", help="Format output as email addresses")
     parser.add_argument("-v", "--verbose", action="store_true", help="Show additional information")
     parser.add_argument("-r", "--no-random", action="store_true", help="Disable randomization of output")
+    parser.add_argument("-m", "--max", type=int, help="Maximum number of usernames to generate")
     
     args = parser.parse_args()
     
@@ -98,11 +107,15 @@ def main():
     last_names = read_names_from_file(args.last)
     
     if args.verbose:
+        total_possible = len(first_names) * len(last_names) * 14
+        limit_message = f" (limiting to {args.max})" if args.max else ""
         sys.stderr.write(f"Loaded {len(first_names)} first names and {len(last_names)} last names\n")
-        sys.stderr.write(f"Generating {len(first_names) * len(last_names) * 14} potential usernames...\n")
+        sys.stderr.write(f"Could generate up to {total_possible} potential usernames{limit_message}\n")
     
     # Generate usernames (randomized by default unless --no-random is specified)
-    usernames = generate_usernames(first_names, last_names, randomize=not args.no_random)
+    usernames = generate_usernames(first_names, last_names, 
+                                  randomize=not args.no_random, 
+                                  max_usernames=args.max)
     
     # Format as emails if requested
     if args.email:
